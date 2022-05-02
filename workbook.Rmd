@@ -1,0 +1,26 @@
+---
+title: "Untitled"
+author: "Jessica Hirsch"
+date: '2022-05-02'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(here)
+```
+
+```{r}
+goodread <- 
+  read_csv(here::here("Data", "books_updated.csv")) %>% 
+  mutate(type = "general")
+
+user_jmh <- 
+  read_csv(here::here("Data", "JMHbooks.csv")) %>% 
+  mutate(type = "JMH")
+```
+
