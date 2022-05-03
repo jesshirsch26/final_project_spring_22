@@ -12,15 +12,80 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(here)
+library(janitor)
 ```
 
 ```{r}
-goodread <- 
+goodreads <- 
   read_csv(here::here("Data", "books_updated.csv")) %>% 
   mutate(type = "general")
 
 user_jmh <- 
   read_csv(here::here("Data", "JMHbooks.csv")) %>% 
   mutate(type = "JMH")
+
+awards <- 
+  read_csv(here::here("Data", "GoodReadsAwards.csv"))
+
+```
+
+```{r}
+glimpse(goodreads)
+
+```
+
+```{r}
+goodreads <- 
+goodreads %>% 
+  select(- best_book_id, -original_title, - starts_with("work"), -small_image_url, -toread_count, -currently_reading)
+
+goodreads <- 
+goodreads %>% 
+rename("publications" = books_count,
+       "publication_year" = original_publication_year)
+
+```
+
+
+```{r}
+summary(awards)
+
+awards %>% 
+  filter(is.na(pages)) %>% 
+  select(category, rank, year, title) %>% 
+  arrange(desc(rank))
+
+awards <- 
+awards %>% 
+  select(gid, rank, votes, category, year, pages, published) %>% 
+  rename("award_rank" = rank,
+         "award_votes" = votes,
+         "award_category" = category,
+         "award_year" = year,
+         "date_published" = published)
+
+```
+
+```{r}
+
+goodreads_awards <- 
+goodreads %>% 
+  left_join(awards, by = c("book_id" = "gid"))
+
+goodreads_awards %>% 
+  summarise(across(everything (), ~sum(is.na(.))))
+```
+
+```{r}
+user_jmh <- 
+clean_names(user_jmh)
+
+glimpse(user_jmh)
+
+user_jmh %>% 
+  mutate(date_read = as.Date(date_read, "%d/%m/%Y"),
+         date_added = as.Date(date_added, "%d/%m/%Y")) %>% 
+  glimpse()
+
 ```
 
