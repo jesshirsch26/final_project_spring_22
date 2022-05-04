@@ -13,6 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(here)
 library(janitor)
+
+source(here::here("functions.R"))
 ```
 
 ```{r}
@@ -44,6 +46,12 @@ goodreads %>%
 rename("publications" = books_count,
        "publication_year" = original_publication_year)
 
+goodreads <- 
+goodreads %>% 
+  mutate(language_code = case_when(
+    str_detect(language_code, pattern = "^[en]") ~ "en",
+    TRUE ~ language_code)) 
+
 ```
 
 
@@ -74,6 +82,7 @@ goodreads %>%
 
 goodreads_awards %>% 
   summarise(across(everything (), ~sum(is.na(.))))
+
 ```
 
 ```{r}
@@ -82,10 +91,56 @@ clean_names(user_jmh)
 
 glimpse(user_jmh)
 
+user_jmh <- 
 user_jmh %>% 
   mutate(date_read = as.Date(date_read, "%d/%m/%Y"),
          date_added = as.Date(date_added, "%d/%m/%Y")) %>% 
-  glimpse()
+  select(-author_l_f, -year_published, -bookshelves_with_positions) %>%
+  rename("format" = binding)  
 
+
+```
+
+```{r}
+
+jmh_look <- 
+user_jmh %>% 
+  map_dfr(look, .id = "field")
+
+ga_look <- 
+goodreads_awards %>% 
+  map_dfr(look, .id = "field")
+
+```
+
+```{r}
+
+ga_nums <- 
+ga_look %>% 
+  filter(class %in% c("numeric", "date")) %>% 
+  pull(field)
+
+map(ga_nums, ~ create_hist(goodreads_awards, .x))
+
+```
+
+```{r}
+ga_nums_selected
+ga_look %>% 
+  filter(class %in% c("numeric", "date"),
+        !(field %in% c("id", "book_id", "isbn13", (str_remove_all(field, "._\\d"))))) %>% 
+  pull(field)
+
+ga_nums
+
+ga_nums_combos <-
+expand_grid(field_1 = ga_nums,
+            field_2 = ga_nums) %>% 
+  filter(field_1 != field_2)
+
+map2(ga_nums_combos$field_1,
+     ga_nums_combos$field_2,
+     ~ create_scatter(goodreads_awards, .x, .y))
+  
 ```
 
