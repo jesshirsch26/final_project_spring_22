@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(here)
 library(janitor)
+library(lubridate)
 
 source(here::here("functions.R"))
 ```
@@ -91,10 +92,11 @@ clean_names(user_jmh)
 
 glimpse(user_jmh)
 
+user_jmh %>% head() %>% dput()
+
 user_jmh <- 
-user_jmh %>% 
-  mutate(date_read = as.Date(date_read, "%d/%m/%Y"),
-         date_added = as.Date(date_added, "%d/%m/%Y")) %>% 
+  user_jmh %>% 
+  mutate(across(starts_with("date"), ~ lubridate::mdy(.), .names = "{col}")) %>% 
   select(-author_l_f, -year_published, -bookshelves_with_positions) %>%
   rename("format" = binding)  
 
@@ -125,17 +127,16 @@ map(ga_nums, ~ create_hist(goodreads_awards, .x))
 ```
 
 ```{r}
-ga_nums_selected
+ga_nums_selected <- 
 ga_look %>% 
   filter(class %in% c("numeric", "date"),
-        !(field %in% c("id", "book_id", "isbn13", (str_remove_all(field, "._\\d"))))) %>% 
+        !field %in% c("id", "book_id", "isbn13"),
+        !str_detect(field, "._\\d")) %>% 
   pull(field)
 
-ga_nums
-
 ga_nums_combos <-
-expand_grid(field_1 = ga_nums,
-            field_2 = ga_nums) %>% 
+expand_grid(field_1 = ga_nums_selected,
+            field_2 = ga_nums_selected) %>% 
   filter(field_1 != field_2)
 
 map2(ga_nums_combos$field_1,
@@ -144,3 +145,109 @@ map2(ga_nums_combos$field_1,
   
 ```
 
+```{r}
+glimpse(user_jmh)
+
+jmh_nums <- 
+jmh_look %>% 
+  filter( class %in% c("numeric", "Date"),
+          !field %in% c("book_id", "isbn13")) %>% 
+  pull(field)
+
+jmh_char <- 
+jmh_look %>% 
+  filter(class %in% "character",
+         !field %in% c("isbn", "additional_authors", "bookshelves", "type")) %>% 
+  pull(field)
+
+```
+
+```{r}
+map(jmh_nums, ~ create_hist(user_jmh, .x))
+```
+
+```{r}
+map(jmh_char, ~ bar_counts(user_jmh, .x))
+```
+
+```{r}
+glimpse(user_jmh)
+
+user_jmh <- 
+user_jmh %>% 
+  mutate(format = case_when(
+    str_detect(format, "Audio") ~ "Audiobook",
+    str_detect(format, "Paper") ~ "Paperback",
+    str_detect(format, "Kindle") ~ "ebook",
+    str_detect(format, "Nook") ~ "ebook",
+    TRUE ~ format)) 
+
+jmh_read <- 
+user_jmh %>% 
+  filter(exclusive_shelf %in% "read")
+
+jmh_nums_combos <-
+expand_grid(field_1 = jmh_nums,
+            field_2 = jmh_nums) %>% 
+  filter(field_1 != field_2)
+
+map2(jmh_nums_combos$field_1,
+     jmh_nums_combos$field_2,
+     ~ create_scatter(user_jmh, .x, .y))
+
+```
+
+```{r}
+jmh_read <- 
+jmh_read %>% 
+  mutate(across(starts_with("date"), ~ year(.), .names = "year_{col}"),
+         read_time = as.double(date_read - date_started),
+         time_to_read = as.double(date_started - date_added))
+
+jmh_read %>% 
+  map_dfr(look, .id = "field")
+  
+jmh_read %>% 
+  count(year_date_read) %>% 
+  ggplot(aes(x = year_date_read,
+             y = n)) +
+  geom_line()
+
+```
+
+```{r}
+jmh_read %>% 
+  group_by(year_date_read) %>% 
+  mutate(avg_pages = mean(number_of_pages, na.rm = T)) %>%
+  ungroup() %>% 
+  ggplot(aes(x = date_read,
+             y = avg_pages)) +
+  geom_line()
+```
+
+```{r}
+jmh_read %>%
+  ggplot(aes(x = year_date_read,
+             y = read_time,
+             group = year_date_read)) +
+  geom_boxplot() +
+  coord_cartesian(ylim = c(0, 100),
+                  xlim = c(2010, 2022)) +
+  scale_x_continuous(breaks = c(2010, 2014, 2018, 2022))
+                  
+
+  
+```
+
+
+  
+```{r}
+
+filter(read_time != 0) %>% 
+  group_by(year_date_read) %>% 
+  mutate(avg_read_time = mean(read_time, na.rm = T)) %>% 
+  ungroup()
+
+
+```
+  
