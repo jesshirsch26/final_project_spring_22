@@ -15,8 +15,31 @@ library(here)
 library(janitor)
 library(lubridate)
 library(ggplot2)
+library(viridis)
 ```
 
+```{r data sources, include=FALSE}
+source(here::here("functions.R"))
+
+goodreads_clean <- 
+  read_csv(here::here("Data Transformation", "goodreads_clean.csv"))
+
+user_jmh_clean <- 
+  read_csv(here::here("Data Transformation", "user_jmh_clean.csv"))
+
+awards_clean <- 
+  read_csv(here::here("Data Transformation", "awards_clean.csv"))
+
+ga_clean <- 
+goodreads_clean %>% 
+  left_join(awards_clean, by = c("book_id" = "gid"))
+
+```
+
+```{r asthetics, include=FALSE}
+lgr_pink <- "#95336d"
+
+```
 
 # Analysis of Reading Trends
 
@@ -26,28 +49,61 @@ As the founder and sole contributor to a literature and lifestyle blog, [LitGirl
 
 ### Goodreads Analysis
 
-```{r}
+```{r include=FALSE}
 
 gr_top_ten <- 
-goodreads %>% 
+goodreads_clean %>% 
   select(title, ratings_count, average_rating, image_url) %>% 
   arrange(desc(ratings_count)) %>% 
   filter(ratings_count >= 2001311) %>% 
   pull(title)
 
 top_ten_images <- 
-goodreads %>% 
+goodreads_clean %>% 
   select(title, ratings_count, average_rating, image_url) %>% 
   arrange(desc(ratings_count)) %>% 
   filter(ratings_count >= 2001311) %>% 
   pull(image_url)
 
-top_ten_images
-
 ```
 
-At first look show us that the most popular book on Goodreads is `r gr_top_ten[1]` based on the number of people rating the book on the site. `r gr_top_ten[2]`, is unsurprisingly the second most popular book.
+At first look show us that the most popular book on Goodreads is **`r gr_top_ten[1]`** based on the number of people rating the book on the site. **`r gr_top_ten[2]`**, is unsurprisingly the second most popular book.
 
-1.  ![r gr_top_ten[1]](%22https://images.gr-assets.com/books/1447303603m/2767052.jpg%22)
+**Top Five most rated Books on Goodreads:**
 
-2.  
+![r gr_top_ten[1]](https://images.gr-assets.com/books/1447303603m/2767052.jpg){width="125"} ![r gr_top_ten[2]](https://images.gr-assets.com/books/1474154022m/3.jpg){width="124"} ![r gr_top_ten[3]](https://images.gr-assets.com/books/1361039443m/41865.jpg){width="124"} ![r gr_top_ten[4]](https://images.gr-assets.com/books/1361975680m/2657.jpg){width="120"} ![r gr_top_ten[5]](https://images.gr-assets.com/books/1490528560m/4671.jpg){width="119"}
+
+This data is certainly helpful for me as i have read all five of these books and they do fall squarely into my preferred genre, however I need to understand the customer more deeply to know which direction to go.
+
+```{r echo=FALSE, fig.show="hold", message=FALSE, warning=FALSE, out.width="30%"}
+
+ga_clean %>% 
+  ggplot(aes(x = average_rating)) +
+  geom_histogram(fill = lgr_pink, color = "grey" ) +
+  labs(title = "Average Rating on Goodreads",
+       x = "rating",
+       y = "") +
+  coord_cartesian(xlim = c(3,5)) +
+  theme_classic() 
+
+ga_clean %>% 
+  ggplot(aes(x = pages)) +
+  geom_histogram(fill = lgr_pink, color = "grey" ) +
+  labs(title = "Book Length",
+       x = "pages",
+       y = "") +
+  coord_cartesian(xlim = c(0,900)) +
+  theme_classic() 
+
+ga_clean %>% 
+  filter(publication_year > 1600) %>% 
+  ggplot(aes(x = publication_year)) +
+  geom_histogram(fill = lgr_pink, color = "grey" ) +
+  labs(title = "Distribution of Publication Year",
+       x = "Year",
+       y = "") +
+  scale_x_continuous(limits = c(1900,NA)) +
+  theme_classic() 
+  
+  
+```
