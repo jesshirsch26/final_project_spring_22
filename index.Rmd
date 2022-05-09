@@ -1,5 +1,6 @@
 ---
-title: "Analysis of Goodreads Data"
+title: "Analysis of Reading Trends"
+subtitle: "For the purposes of niche blog development"
 author: "Jessica Hirsch"
 date: '2022-05-09'
 output: html_document
@@ -38,12 +39,12 @@ goodreads_clean %>%
 
 ```{r asthetics, include=FALSE}
 lgr_pink <- "#95336d"
+lgr_neon <- "#ff0099"
+lgr_yellow <- "#fdfa00"
+lgr_grey <- "#545454"
 
 ```
 
-# Analysis of Reading Trends
-
-## For the purposes of niche blog development
 
 As the founder and sole contributor to a literature and lifestyle blog, [LitGirlsRead](litgirlsread.com), what began as a fun quarantine project quickly proved to be overwhelming. the desire to get something out of my work and monetize the blog was increasing, as my ability to read and write on pace waned. ultimately reading is not nearly niche enough to truly launch into the world of blogging, let alone blogging for profit. to make a more informed decision about the next steps for LitGirls I need to analyze the market, current trends and potential customer bases. This need led me to retrieve some data off of [Goodreads.com](goodreads.com), in the form of a 10K book data set, to try and understand some reader trends and to perform a preliminary analysis on the one user who's library was fully available, my own!
 
@@ -75,6 +76,8 @@ At first look show us that the most popular book on Goodreads is **`r gr_top_ten
 
 This data is certainly helpful for me as i have read all five of these books and they do fall squarely into my preferred genre, however I need to understand the customer more deeply to know which direction to go.
 
+### Preliminary Distributions 
+
 ```{r echo=FALSE, fig.show="hold", message=FALSE, warning=FALSE, out.width="30%"}
 
 ga_clean %>% 
@@ -84,7 +87,10 @@ ga_clean %>%
        x = "rating",
        y = "") +
   coord_cartesian(xlim = c(3,5)) +
-  theme_classic() 
+  theme_classic() +
+  theme(axis.text = element_text(size = 12),
+        title = element_text(size = 15),
+        plot.title = element_text(face = "bold"))
 
 ga_clean %>% 
   ggplot(aes(x = pages)) +
@@ -93,7 +99,10 @@ ga_clean %>%
        x = "pages",
        y = "") +
   coord_cartesian(xlim = c(0,900)) +
-  theme_classic() 
+  theme_classic() +
+  theme(axis.text = element_text(size = 12),
+        title = element_text(size = 15),
+        plot.title = element_text(face = "bold"))
 
 ga_clean %>% 
   filter(publication_year > 1600) %>% 
@@ -102,8 +111,131 @@ ga_clean %>%
   labs(title = "Distribution of Publication Year",
        x = "Year",
        y = "") +
-  scale_x_continuous(limits = c(1900,NA)) +
-  theme_classic() 
+  scale_x_continuous(limits = c(1900,2025)) +
+  theme_classic() +
+  theme(axis.text = element_text(size = 12),
+        title = element_text(size = 15),
+        plot.title = element_text(face = "bold"))
   
+
+```
+
+Looking over this information i can get a preliminary picture of the average reader. The average book length is `r format(mean(ga_clean$pages,na.rm =T),digits = 3)`pages, with 4 being the median average rating. this confirms my assumption that people are more likely to rate books they like and skew their rating more generously than yelp reviewers.additionally i can see that the majority of books read (or at least rated on Goodreads) were published in this century. this is not surprising as Goodreads first launched in 2007. A fair assumptions to make here, based on my own habits, is that users are generally tracking, rating, and reviewing the books they are currently and want to read rather than going back to add in all the books read during the 1997 summer reading challenge. 
+
+
+```{r, include=FALSE}
+tag_clean <- 
+ga_clean %>% 
+  mutate(tag_name = str_split(tag_name, "[\\W]")) %>% 
+  unnest(tag_name) %>%
+  mutate(across(where(is.character), ~ na_if(., ""))) %>% 
+  filter(!is.na(tag_name))
+
+tag_clean_count <- 
+tag_clean %>%
+  mutate(tag_name = case_when(
+    str_detect(tag_name, pattern = "witces") ~ "supernatural",
+    str_detect(tag_name, pattern = "wish") ~ "To Read",
+    str_detect(tag_name, pattern = "young") ~ "YA",
+    str_detect(tag_name, pattern = "ya") ~"YA",
+    str_detect(tag_name, pattern = "ii") ~ "war",
+    str_detect(tag_name, pattern = "vamp") ~ "supernatural",
+    str_detect(tag_name, pattern = "urb") ~ "fantasy",
+    str_detect(tag_name, pattern = "^[to]") ~ "To Read",
+    str_detect(tag_name, pattern = "thril") ~ "thriller",
+    str_detect(tag_name, pattern = "^[time]") ~ "SciFi",
+    str_detect(tag_name, pattern = "teen") ~ "YA",
+    str_detect(tag_name, pattern = "sus") ~ "thriller",
+    str_detect(tag_name, pattern = "stars") ~ "astronomy",
+    str_detect(tag_name, pattern = "spirit") ~ "spritual",
+    str_detect(tag_name, pattern = "space") ~ "SciFi",
+    str_detect(tag_name, pattern = "shape") ~ "supernatural",
+    str_detect(tag_name, pattern = "sf") ~ "SciFi",
+    str_detect(tag_name, pattern = "self") ~ "selfhelp",
+    str_detect(tag_name, pattern = "scifi") ~ "SciFi",
+    str_detect(tag_name, pattern = "sciencef") ~ "SciFi",
+    str_detect(tag_name, pattern = "rom") ~ "romance",
+    str_detect(tag_name, pattern = "rel") ~ "religion",
+    str_detect(tag_name, pattern = "read") ~ "read",
+    str_detect(tag_name, pattern = "post") ~ "dystopian",
+    str_detect(tag_name, pattern = "pict") ~ "children",
+    str_detect(tag_name, pattern = "para") ~ "supernatural",
+    str_detect(tag_name, pattern = "pnr") ~ "supernatural",
+    str_detect(tag_name, pattern = "person") ~ "selfhelp",
+    str_detect(tag_name, pattern = "own") ~ "owned",
+    str_detect(tag_name, pattern = "novel") ~ "novel",
+    str_detect(tag_name, pattern = "mys") ~ "mystery",
+    str_detect(tag_name, pattern = "new") ~ "adult",
+    str_detect(tag_name, pattern = "my[l|b]") ~ "owned",
+    str_detect(tag_name, pattern = "mem") ~ "memoir",
+    str_detect(tag_name, pattern = "mang") ~ "manga",
+    str_detect(tag_name, pattern = "magic") ~ "supernatural",
+    str_detect(tag_name, pattern = "lit") ~ "literature",
+    str_detect(tag_name, pattern = "kids") ~ "kids",
+    str_detect(tag_name, pattern = "juv") ~ "kids",
+    str_detect(tag_name, pattern = "hum") ~ "humor",
+    str_detect(tag_name, pattern = "historical[f|r]") ~ "historical fiction",
+    str_detect(tag_name, pattern = "historical[\\s]") ~ "history",
+    str_detect(tag_name, pattern = "highs") ~ "YA",
+    str_detect(tag_name, pattern = "highf") ~ "fantasy",
+    str_detect(tag_name, pattern = "graphic") ~ "graphic novel",
+    str_detect(tag_name, pattern = "generalf") ~ "fiction",
+    str_detect(tag_name, pattern = "funny") ~ "humor",
+    str_detect(tag_name, pattern = "^fav") ~ "favorite",
+    str_detect(tag_name, pattern = "^fan") ~ "fantasy",
+    str_detect(tag_name, pattern = "faith") ~ "spiritual",
+    str_detect(tag_name, pattern = "espi") ~ "spy",
+    str_detect(tag_name, pattern = "^epic") ~ "fantasy",
+    str_detect(tag_name, pattern = "ebook") ~ "ebook",
+    str_detect(tag_name, pattern = "dys") ~ "dystopian",
+    str_detect(tag_name, pattern = "drag") ~ "supernatural",
+    str_detect(tag_name, pattern = "detect") ~ "crime",
+    str_detect(tag_name, pattern = "dem") ~ "supernatural",
+    str_detect(tag_name, pattern = "crime") ~ "crime",
+    str_detect(tag_name, pattern = "contem") ~ "contemproary",
+    str_detect(tag_name, pattern = "c[ó|o]mi") ~ "graphic novel",
+    str_detect(tag_name, pattern = "come") ~ "humor",
+    str_detect(tag_name, pattern = "classic") ~ "classics",
+    str_detect(tag_name, pattern = "christ") ~ "spiritual",
+    str_detect(tag_name, pattern = "child") ~ "children",
+    str_detect(tag_name, pattern = "chick") ~ "romance",
+    str_detect(tag_name, pattern = "booksto") ~ "To Read",
+    str_detect(tag_name, pattern = "^bio") ~ "biography",
+    str_detect(tag_name, pattern = "^aud") ~ "audiobook",
+    str_detect(tag_name, pattern = "^amer") ~ "american",
+    str_detect(tag_name, pattern = "^adu") ~ "adult",
+    str_detect(tag_name, pattern = "abandoned") ~ "dnf",
+    TRUE ~ tag_name
+  ))%>% 
+  count(tag_name)%>% 
+  filter(n > 100) %>% 
+  arrange(desc(n)) 
   
 ```
+
+```{r, fig.height= 7, echo =FALSE}
+tag_clean_count %>%
+  filter(n > 500) %>% 
+  mutate(tag_name = fct_reorder(tag_name, n)) %>% 
+  ggplot(aes(y = tag_name,
+             x = n,
+             fill = n)) +
+  geom_col() +
+  labs(title = "Reader Bookshleves",
+       x = "",
+       y = "Shelves") +
+  theme_classic() +
+  scale_fill_viridis(option = "plasma") +
+  theme(axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 10),
+        title = element_text(size = 15),
+        plot.title = element_text(face = "bold"))
+```
+
+Since the Goodreads API did not supply static genre fields i took a look at the tags members used to "shelve" thier reads. books may be on more than one shelf and as we can see, most of the books have yet to be read. a common problem with bibliophiles is that the rate of adding books to your To Be Read (TBR) shelf greatly outpaces the rate at which we read. there are some imperfection with this data, but looking through here for genres, we can see that SciFi, YA, romance, and fantasy are high on the list. lists like this might help me to gain some insight into how to further narrow my niche, or perhaps to focus on thoes hoping to diversify thier reading material. What would be the most helpful is to dig into individual reader behavior. Since i do not have access to individua user data from goodreads i will have to make due with analyzing my own habit first.
+
+
+```{r}
+
+```
+
