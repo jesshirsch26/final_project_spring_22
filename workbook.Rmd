@@ -14,6 +14,7 @@ library(tidyverse)
 library(here)
 library(janitor)
 library(lubridate)
+library(ggplot2)
 
 source(here::here("functions.R"))
 ```
@@ -220,9 +221,9 @@ jmh_read %>%
   group_by(year_date_read) %>% 
   mutate(avg_pages = mean(number_of_pages, na.rm = T)) %>%
   ungroup() %>% 
-  ggplot(aes(x = date_read,
-             y = avg_pages)) +
-  geom_line()
+  ggplot(aes(x = year_date_read,
+             y = number_of_pages)) +
+  geom_col()
 ```
 
 ```{r}
@@ -233,21 +234,128 @@ jmh_read %>%
   geom_boxplot() +
   coord_cartesian(ylim = c(0, 100),
                   xlim = c(2010, 2022)) +
-  scale_x_continuous(breaks = c(2010, 2014, 2018, 2022))
-                  
+  scale_x_continuous(breaks = c(2010, 2014, 2018, 2022)) 
+
 
   
 ```
 
+```{r}
+
+jmh_read %>% 
+  group_by(year_date_read) %>% 
+  mutate(avg_pages = mean(number_of_pages, na.rm = T),
+         avg_time = mean(read_time, na.rm = T)) %>%
+  ungroup() %>%
+  ggplot(aes(x = year_date_read)) +
+  geom_col(aes(y = avg_pages/100)) +
+  geom_line(aes(y = avg_time, Color = "blue")) +
+  scale_y_continuous(name = "Average Time to Read", sec.axis = sec_axis(trans = ~.*100, name = "Average Pages")) +
+  coord_cartesian(xlim = c(2010,2022)) +
+  theme_light()
+
+
+
+```
+
+```{r}
+
+goodread_tags <- 
+goodreads_awards %>% 
+  mutate(tag_name = str_split(tag_name, "[\\W]")) %>% 
+  unnest(tag_name) %>%
+  mutate(across(where(is.character), ~ na_if(., ""))) %>% 
+  filter(!is.na(tag_name))
+
+
+gr_tag_count <- 
+goodread_tags%>% 
+  mutate(tag_name = case_when(
+    str_detect(tag_name, pattern = "witces") ~ "supernatural",
+    str_detect(tag_name, pattern = "wish") ~ "To Read",
+    str_detect(tag_name, pattern = "young") ~ "YA",
+    str_detect(tag_name, pattern = "ya") ~"YA",
+    str_detect(tag_name, pattern = "ii") ~ "war",
+    str_detect(tag_name, pattern = "vamp") ~ "supernatural",
+    str_detect(tag_name, pattern = "urb") ~ "fantasy",
+    str_detect(tag_name, pattern = "^[to]") ~ "To Read",
+    str_detect(tag_name, pattern = "thril") ~ "thriller",
+    str_detect(tag_name, pattern = "^[time]") ~ "SciFi",
+    str_detect(tag_name, pattern = "teen") ~ "YA",
+    str_detect(tag_name, pattern = "sus") ~ "thriller",
+    str_detect(tag_name, pattern = "stars") ~ "astronomy",
+    str_detect(tag_name, pattern = "spirit") ~ "spritual",
+    str_detect(tag_name, pattern = "space") ~ "SciFi",
+    str_detect(tag_name, pattern = "shape") ~ "supernatural",
+    str_detect(tag_name, pattern = "sf") ~ "SciFi",
+    str_detect(tag_name, pattern = "self") ~ "selfhelp",
+    str_detect(tag_name, pattern = "scifi") ~ "SciFi",
+    str_detect(tag_name, pattern = "sciencef") ~ "SciFi",
+    str_detect(tag_name, pattern = "rom") ~ "romance",
+    str_detect(tag_name, pattern = "rel") ~ "religion",
+    str_detect(tag_name, pattern = "read") ~ "read",
+    str_detect(tag_name, pattern = "post") ~ "dystopian",
+    str_detect(tag_name, pattern = "pict") ~ "children",
+    str_detect(tag_name, pattern = "para") ~ "supernatural",
+    str_detect(tag_name, pattern = "pnr") ~ "supernatural",
+    str_detect(tag_name, pattern = "person") ~ "selfhelp",
+    str_detect(tag_name, pattern = "own") ~ "owned",
+    str_detect(tag_name, pattern = "novel") ~ "novel",
+    str_detect(tag_name, pattern = "mys") ~ "mystery",
+    str_detect(tag_name, pattern = "new") ~ "adult",
+    str_detect(tag_name, pattern = "my[l|b]") ~ "owned",
+    str_detect(tag_name, pattern = "mem") ~ "memoir",
+    str_detect(tag_name, pattern = "mang") ~ "manga",
+    str_detect(tag_name, pattern = "magic") ~ "supernatural",
+    str_detect(tag_name, pattern = "lit") ~ "literature",
+    str_detect(tag_name, pattern = "kids") ~ "kids",
+    str_detect(tag_name, pattern = "juv") ~ "kids",
+    str_detect(tag_name, pattern = "hum") ~ "humor",
+    str_detect(tag_name, pattern = "historical[f|r]") ~ "historical fiction",
+    str_detect(tag_name, pattern = "historical[\\s]") ~ "history",
+    str_detect(tag_name, pattern = "highs") ~ "YA",
+    str_detect(tag_name, pattern = "highf") ~ "fantasy",
+    str_detect(tag_name, pattern = "graphic") ~ "graphic novel",
+    str_detect(tag_name, pattern = "generalf") ~ "fiction",
+    str_detect(tag_name, pattern = "funny") ~ "humor",
+    str_detect(tag_name, pattern = "^fav") ~ "favorite",
+    str_detect(tag_name, pattern = "^fan") ~ "fantasy",
+    str_detect(tag_name, pattern = "faith") ~ "spiritual",
+    str_detect(tag_name, pattern = "espi") ~ "spy",
+    str_detect(tag_name, pattern = "^epic") ~ "fantasy",
+    str_detect(tag_name, pattern = "ebook") ~ "ebook",
+    str_detect(tag_name, pattern = "dys") ~ "dystopian",
+    str_detect(tag_name, pattern = "drag") ~ "supernatural",
+    str_detect(tag_name, pattern = "detect") ~ "crime",
+    str_detect(tag_name, pattern = "dem") ~ "supernatural",
+    str_detect(tag_name, pattern = "crime") ~ "crime",
+    str_detect(tag_name, pattern = "contem") ~ "contemproary",
+    str_detect(tag_name, pattern = "c[ó|o]mi") ~ "graphic novel",
+    str_detect(tag_name, pattern = "come") ~ "humor",
+    str_detect(tag_name, pattern = "classic") ~ "classics",
+    str_detect(tag_name, pattern = "christ") ~ "spiritual",
+    str_detect(tag_name, pattern = "child") ~ "children",
+    str_detect(tag_name, pattern = "chick") ~ "romance",
+    str_detect(tag_name, pattern = "booksto") ~ "To Read",
+    str_detect(tag_name, pattern = "^bio") ~ "biography",
+    str_detect(tag_name, pattern = "^aud") ~ "audiobook",
+    str_detect(tag_name, pattern = "^amer") ~ "american",
+    str_detect(tag_name, pattern = "^adu") ~ "adult",
+    str_detect(tag_name, pattern = "abandoned") ~ "dnf",
+    TRUE ~ tag_name
+  ))%>% 
+  count(tag_name)%>% 
+  filter(n > 100) %>% 
+  arrange(desc(n)) 
+  
+```
 
   
 ```{r}
-
-filter(read_time != 0) %>% 
-  group_by(year_date_read) %>% 
-  mutate(avg_read_time = mean(read_time, na.rm = T)) %>% 
-  ungroup()
-
-
+gr_tag_count %>%
+  filter(n > 500) %>% 
+  ggplot(aes(y = tag_name,
+             x = n)) +
+  geom_col()
 ```
-  
+
