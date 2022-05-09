@@ -1,0 +1,53 @@
+---
+title: "Analysis of Goodreads Data"
+author: "Jessica Hirsch"
+date: '2022-05-09'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Libraries, include=FALSE}
+library(tidyverse)
+library(here)
+library(janitor)
+library(lubridate)
+library(ggplot2)
+```
+
+
+# Analysis of Reading Trends
+
+## For the purposes of niche blog development
+
+As the founder and sole contributor to a literature and lifestyle blog, [LitGirlsRead](litgirlsread.com), what began as a fun quarantine project quickly proved to be overwhelming. the desire to get something out of my work and monetize the blog was increasing, as my ability to read and write on pace waned. ultimately reading is not nearly niche enough to truly launch into the world of blogging, let alone blogging for profit. to make a more informed decision about the next steps for LitGirls I need to analyze the market, current trends and potential customer bases. This need led me to retrieve some data off of [Goodreads.com](goodreads.com), in the form of a 10K book data set, to try and understand some reader trends and to perform a preliminary analysis on the one user who's library was fully available, my own!
+
+### Goodreads Analysis
+
+```{r}
+
+gr_top_ten <- 
+goodreads %>% 
+  select(title, ratings_count, average_rating, image_url) %>% 
+  arrange(desc(ratings_count)) %>% 
+  filter(ratings_count >= 2001311) %>% 
+  pull(title)
+
+top_ten_images <- 
+goodreads %>% 
+  select(title, ratings_count, average_rating, image_url) %>% 
+  arrange(desc(ratings_count)) %>% 
+  filter(ratings_count >= 2001311) %>% 
+  pull(image_url)
+
+top_ten_images
+
+```
+
+At first look show us that the most popular book on Goodreads is `r gr_top_ten[1]` based on the number of people rating the book on the site. `r gr_top_ten[2]`, is unsurprisingly the second most popular book.
+
+1.  ![r gr_top_ten[1]](%22https://images.gr-assets.com/books/1447303603m/2767052.jpg%22)
+
+2.  
