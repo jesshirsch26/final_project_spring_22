@@ -1,0 +1,360 @@
+---
+title: "Analysis of Reading Trends"
+subtitle: "For the purposes of niche blog development"
+author: "Jessica Hirsch"
+date: 'May 9, 2022'
+output:
+  prettydoc::html_pretty:
+    theme: hpstr
+    highlight: null
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Libraries, include=FALSE}
+library(tidyverse)
+library(here)
+library(janitor)
+library(lubridate)
+library(ggplot2)
+library(viridis)
+library(prettydoc)
+```
+
+```{r data sources, include=FALSE}
+source(here::here("functions.R"))
+
+goodreads_clean <- 
+  read_csv(here::here("Data Transformation", "goodreads_clean.csv"))
+
+user_jmh_clean <- 
+  read_csv(here::here("Data Transformation", "user_jmh_clean.csv"))
+
+awards_clean <- 
+  read_csv(here::here("Data Transformation", "awards_clean.csv"))
+
+ga_clean <- 
+goodreads_clean %>% 
+  left_join(awards_clean, by = c("book_id" = "gid"))
+
+```
+
+```{r asthetics, include=FALSE}
+lgr_pink <- "#95336d"
+lgr_neon <- "#ff0099"
+lgr_yellow <- "#fdfa00"
+lgr_grey <- "#545454"
+lgr_gold <- "#c9ad80"
+
+```
+
+As the founder and sole contributor to a literature and lifestyle blog, [LitGirlsRead](litgirlsread.com), what began as a fun quarantine project quickly proved to be overwhelming. The desire to get something out of my work and monetize the blog was increasing, as my ability to read and write on pace waned. Ultimately reading is not nearly niche enough to truly launch into the world of blogging, let alone blogging for profit. To make a more informed decision about the next steps for LitGirls I need to analyze the market, current trends and potential customer bases. This need led me to retrieve some data off of [Goodreads.com](goodreads.com), in the form of a 10K book data set, to try and understand some reader trends and to perform a preliminary analysis on the one user who's library was fully available, my own!
+
+### Goodreads Analysis
+
+```{r include=FALSE}
+
+gr_top_ten <- 
+goodreads_clean %>% 
+  select(title, ratings_count, average_rating, image_url) %>% 
+  arrange(desc(ratings_count)) %>% 
+  filter(ratings_count >= 2001311) %>% 
+  pull(title)
+
+top_ten_images <- 
+goodreads_clean %>% 
+  select(title, ratings_count, average_rating, image_url) %>% 
+  arrange(desc(ratings_count)) %>% 
+  filter(ratings_count >= 2001311) %>% 
+  pull(image_url)
+
+```
+
+At first look show us that the most popular book on Goodreads is **`r gr_top_ten[1]`** based on the number of people rating the book on the site. **`r gr_top_ten[2]`**, is unsurprisingly the second most popular book.
+
+**Top Five most rated Books on Goodreads:**
+
+![r gr_top_ten[1]](https://images.gr-assets.com/books/1447303603m/2767052.jpg){width="125"} ![r gr_top_ten[2]](https://images.gr-assets.com/books/1474154022m/3.jpg){width="124"} ![r gr_top_ten[3]](https://images.gr-assets.com/books/1361039443m/41865.jpg){width="124"} ![r gr_top_ten[4]](https://images.gr-assets.com/books/1361975680m/2657.jpg){width="120"} ![r gr_top_ten[5]](https://images.gr-assets.com/books/1490528560m/4671.jpg){width="119"}
+
+This data is certainly helpful for me as I have read all five of these books and they do fall squarely into my preferred genre, however I need to understand the customer more deeply to know which direction to go.
+
+### Preliminary Distributions
+
+```{r echo=FALSE, fig.show="hold", message=FALSE, warning=FALSE, out.width="30%"}
+
+ga_clean %>% 
+  ggplot(aes(x = average_rating)) +
+  geom_histogram(fill = lgr_pink, color = "grey" ) +
+  labs(title = "Average Rating on Goodreads",
+       x = "rating",
+       y = "") +
+  coord_cartesian(xlim = c(3,5)) +
+  theme_classic() +
+  theme(axis.text = element_text(size = 12),
+        title = element_text(size = 15),
+        plot.title = element_text(face = "bold"))
+
+ga_clean %>% 
+  ggplot(aes(x = pages)) +
+  geom_histogram(fill = lgr_pink, color = "grey" ) +
+  labs(title = "Book Length",
+       x = "pages",
+       y = "") +
+  coord_cartesian(xlim = c(0,900)) +
+  theme_classic() +
+  theme(axis.text = element_text(size = 12),
+        title = element_text(size = 15),
+        plot.title = element_text(face = "bold"))
+
+ga_clean %>% 
+  filter(publication_year > 1600) %>% 
+  ggplot(aes(x = publication_year)) +
+  geom_histogram(fill = lgr_pink, color = "grey" ) +
+  labs(title = "Distribution of Publication Year",
+       x = "Year",
+       y = "") +
+  scale_x_continuous(limits = c(1900,2025)) +
+  theme_classic() +
+  theme(axis.text = element_text(size = 12),
+        title = element_text(size = 15),
+        plot.title = element_text(face = "bold"))
+  
+
+```
+
+Looking over this information I can get a preliminary picture of the average reader. The average book length is `r format(mean(ga_clean$pages,na.rm =T),digits = 3)` pages, with 4 being the median average rating. this confirms my assumption that people are more likely to rate books they like and skew their rating more generously than yelp reviewers.additionally I can see that the majority of books read (or at least rated on Goodreads) were published in this century. This is not surprising as Goodreads first launched in 2007. A fair assumptions to make here, based on my own habits, is that users are generally tracking, rating, and reviewing the books they are currently and want to read rather than going back to add in all the books read during the 1997 summer reading challenge.
+
+### Bookshelf Breakdown
+
+```{r, include=FALSE}
+tag_clean <- 
+ga_clean %>% 
+  mutate(tag_name = str_split(tag_name, "[\\W]")) %>% 
+  unnest(tag_name) %>%
+  mutate(across(where(is.character), ~ na_if(., ""))) %>% 
+  filter(!is.na(tag_name))
+
+tag_clean_count <- 
+tag_clean %>%
+  mutate(tag_name = case_when(
+    str_detect(tag_name, pattern = "witces") ~ "supernatural",
+    str_detect(tag_name, pattern = "wish") ~ "To Read",
+    str_detect(tag_name, pattern = "young") ~ "YA",
+    str_detect(tag_name, pattern = "ya") ~"YA",
+    str_detect(tag_name, pattern = "ii") ~ "war",
+    str_detect(tag_name, pattern = "vamp") ~ "supernatural",
+    str_detect(tag_name, pattern = "urb") ~ "fantasy",
+    str_detect(tag_name, pattern = "^[to]") ~ "To Read",
+    str_detect(tag_name, pattern = "thril") ~ "thriller",
+    str_detect(tag_name, pattern = "^[time]") ~ "SciFi",
+    str_detect(tag_name, pattern = "teen") ~ "YA",
+    str_detect(tag_name, pattern = "sus") ~ "thriller",
+    str_detect(tag_name, pattern = "stars") ~ "astronomy",
+    str_detect(tag_name, pattern = "spirit") ~ "spritual",
+    str_detect(tag_name, pattern = "space") ~ "SciFi",
+    str_detect(tag_name, pattern = "shape") ~ "supernatural",
+    str_detect(tag_name, pattern = "sf") ~ "SciFi",
+    str_detect(tag_name, pattern = "self") ~ "selfhelp",
+    str_detect(tag_name, pattern = "scifi") ~ "SciFi",
+    str_detect(tag_name, pattern = "sciencef") ~ "SciFi",
+    str_detect(tag_name, pattern = "rom") ~ "romance",
+    str_detect(tag_name, pattern = "rel") ~ "religion",
+    str_detect(tag_name, pattern = "read") ~ "read",
+    str_detect(tag_name, pattern = "post") ~ "dystopian",
+    str_detect(tag_name, pattern = "pict") ~ "children",
+    str_detect(tag_name, pattern = "para") ~ "supernatural",
+    str_detect(tag_name, pattern = "pnr") ~ "supernatural",
+    str_detect(tag_name, pattern = "person") ~ "selfhelp",
+    str_detect(tag_name, pattern = "own") ~ "owned",
+    str_detect(tag_name, pattern = "novel") ~ "novel",
+    str_detect(tag_name, pattern = "mys") ~ "mystery",
+    str_detect(tag_name, pattern = "new") ~ "adult",
+    str_detect(tag_name, pattern = "my[l|b]") ~ "owned",
+    str_detect(tag_name, pattern = "mem") ~ "memoir",
+    str_detect(tag_name, pattern = "mang") ~ "manga",
+    str_detect(tag_name, pattern = "magic") ~ "supernatural",
+    str_detect(tag_name, pattern = "lit") ~ "literature",
+    str_detect(tag_name, pattern = "kids") ~ "kids",
+    str_detect(tag_name, pattern = "juv") ~ "kids",
+    str_detect(tag_name, pattern = "hum") ~ "humor",
+    str_detect(tag_name, pattern = "historical[f|r]") ~ "historical fiction",
+    str_detect(tag_name, pattern = "historical[\\s]") ~ "history",
+    str_detect(tag_name, pattern = "highs") ~ "YA",
+    str_detect(tag_name, pattern = "highf") ~ "fantasy",
+    str_detect(tag_name, pattern = "graphic") ~ "graphic novel",
+    str_detect(tag_name, pattern = "generalf") ~ "fiction",
+    str_detect(tag_name, pattern = "funny") ~ "humor",
+    str_detect(tag_name, pattern = "^fav") ~ "favorite",
+    str_detect(tag_name, pattern = "^fan") ~ "fantasy",
+    str_detect(tag_name, pattern = "faith") ~ "spiritual",
+    str_detect(tag_name, pattern = "espi") ~ "spy",
+    str_detect(tag_name, pattern = "^epic") ~ "fantasy",
+    str_detect(tag_name, pattern = "ebook") ~ "ebook",
+    str_detect(tag_name, pattern = "dys") ~ "dystopian",
+    str_detect(tag_name, pattern = "drag") ~ "supernatural",
+    str_detect(tag_name, pattern = "detect") ~ "crime",
+    str_detect(tag_name, pattern = "dem") ~ "supernatural",
+    str_detect(tag_name, pattern = "crime") ~ "crime",
+    str_detect(tag_name, pattern = "contem") ~ "contemproary",
+    str_detect(tag_name, pattern = "c[ó|o]mi") ~ "graphic novel",
+    str_detect(tag_name, pattern = "come") ~ "humor",
+    str_detect(tag_name, pattern = "classic") ~ "classics",
+    str_detect(tag_name, pattern = "christ") ~ "spiritual",
+    str_detect(tag_name, pattern = "child") ~ "children",
+    str_detect(tag_name, pattern = "chick") ~ "romance",
+    str_detect(tag_name, pattern = "booksto") ~ "To Read",
+    str_detect(tag_name, pattern = "^bio") ~ "biography",
+    str_detect(tag_name, pattern = "^aud") ~ "audiobook",
+    str_detect(tag_name, pattern = "^amer") ~ "american",
+    str_detect(tag_name, pattern = "^adu") ~ "adult",
+    str_detect(tag_name, pattern = "abandoned") ~ "dnf",
+    TRUE ~ tag_name
+  ))%>% 
+  count(tag_name)%>% 
+  filter(n > 100) %>% 
+  arrange(desc(n)) 
+  
+```
+
+```{r, fig.height= 7, echo =FALSE}
+tag_clean_count %>%
+  filter(n > 500) %>% 
+  mutate(tag_name = fct_reorder(tag_name, n)) %>% 
+  ggplot(aes(y = tag_name,
+             x = n,
+             fill = n)) +
+  geom_col() +
+  labs(title = "Reader Bookshleves",
+       x = "",
+       y = "Shelves") +
+  theme_classic() +
+  scale_fill_viridis(option = "plasma", name = "Books") +
+  theme(axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 10),
+        title = element_text(size = 15),
+        plot.title = element_text(face = "bold"))
+```
+
+Since the Goodreads API did not supply static genre fields I took a look at the tags members used to "shelve" their reads. books may be on more than one shelf and as we can see, most of the books have yet to be read. a common problem with bibliophiles is that the rate of adding books to your To Be Read (TBR) shelf greatly outpaces the rate at which we read. there are some imperfection with this data, but looking through here for genres, we can see that SciFi, YA, romance, and fantasy are high on the list. lists like this might help me to gain some insight into how to further narrow my niche, or perhaps to focus on those hoping to diversify their reading material. What would be the most helpful is to dig into individual reader behavior. Since I do not have access to individual user data from Goodreads I will have to make due with analyzing my own habit first.
+
+### Unique Reader Analysis
+
+```{r, include=FALSE}
+
+jmh_read_clean <- 
+user_jmh_clean %>% 
+  filter(exclusive_shelf %in% "read") %>% 
+  mutate(across(starts_with("date"), ~ year(.), .names = "year_{col}"),
+         read_time = as.double(date_read - date_started),
+         time_to_read = as.double(date_started - date_added))
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+jmh_read_clean %>% 
+  count(year_date_read) %>% 
+  ggplot(aes(x = year_date_read,
+             y = n)) +
+  geom_line(color = lgr_neon, size = 1) +
+  labs(title = "Books Read",
+         subtitle = "For User: <jesshirsch26> ",
+       x = "Year",
+       y = "") +
+  scale_x_continuous(limits = c(2010,NA), breaks = seq(2010,2022, by = 2)) +
+  theme_classic() +
+  theme(axis.text = element_text(size = 12),
+        title = element_text(size = 15),
+        plot.subtitle = element_text(size = 13),
+        plot.title = element_text(face = "bold"),
+        panel.grid.major.y=element_line())
+ 
+jmh_read_clean %>% 
+  ggplot(aes(x = year_date_read,
+             y = number_of_pages)) +
+  geom_col(fill = lgr_gold) +
+  labs(title = "Pages Read",
+         subtitle = "For User: <jesshirsch26> ",
+       x = "Year",
+       y = "Number of Pages") +
+  scale_x_continuous(limits = c(2010,NA), breaks = seq(2010,2022, by = 2)) +
+  theme_classic() +
+  theme(axis.text = element_text(size = 12),
+        title = element_text(size = 15),
+        plot.subtitle = element_text(size = 13),
+        plot.title = element_text(face = "bold"),
+        panel.grid.major.y=element_line())
+
+
+jmh_read_clean %>%
+  count(format) %>% 
+  mutate(format = fct_reorder(format, n)) %>% 
+  ggplot(aes(y = format,
+             x = n)) +
+  geom_col(fill = lgr_pink) +
+  labs(title = "Format Read",
+         subtitle = "For User: <jesshirsch26> ",
+       x = "",
+       y = "Book Format") +
+  theme_classic() +
+  theme(axis.text = element_text(size = 12),
+        title = element_text(size = 15),
+        plot.subtitle = element_text(size = 13),
+        plot.title = element_text(face = "bold"),
+        panel.grid.major.y=element_line())
+
+```
+
+The looking at an individuals reading data give a little more insight into where to focus. books read over time trends with page over time, which is not always the case. if the books read were a lot of graphic novels or audio books there would be a high number of books and a lower number of pages. this is why looking at the format can be important. when trying to make recommendation it's great to be able to tailor that towards a certain medium. in this case the spread is fairly diverse across physical, audio, and ebooks. reading tends are also tracking with world events, there is a slight uptick in 2016-17 and then a large up tick in 2020 during Covid (no wonder I started a blog).
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+jmh_read_clean %>%
+  ggplot(aes(x = year_date_read,
+             y = read_time,
+             group = year_date_read)) +
+  geom_boxplot(fill = lgr_pink, color = "black") +
+  labs(title = "Average Time to Finish a Book",
+         subtitle = "For User: <jesshirsch26> ",
+       x = "Year",
+       y = "# of Days") +
+  coord_cartesian(ylim = c(0, 75),
+                  xlim = c(2010, 2022)) +
+  scale_x_continuous(breaks = c(2010, 2014, 2018, 2022)) +
+  theme_classic() +
+  theme(axis.text = element_text(size = 12),
+        title = element_text(size = 15),
+        plot.subtitle = element_text(size = 13),
+        plot.title = element_text(face = "bold"),
+        panel.grid.major.y=element_line())
+
+jmh_read_clean %>% 
+  group_by(year_date_read) %>% 
+  mutate(avg_pages = mean(number_of_pages, na.rm = T),
+         avg_time = mean(read_time, na.rm = T)) %>%
+  ungroup() %>%
+  ggplot(aes(x = year_date_read)) +
+  geom_col(aes(y = avg_pages/100), fill = lgr_grey) +
+  geom_line(aes(y = avg_time), color = lgr_yellow, size = 1.5) +
+  scale_x_continuous(limits = c(2010,NA), breaks = seq(2010,2022, by = 2)) +
+  scale_y_continuous(name = "Average Time to Read",
+                     sec.axis = sec_axis(trans = ~.*100, name = "Average Pages")) +
+  labs(title = "Average Read Time vs Number of Pages Read",
+         subtitle = "For User: <jesshirsch26> ",
+       x = "Year") +
+  coord_cartesian(xlim = c(2010,2022)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(size = 12),
+        title = element_text(size = 15),
+        plot.subtitle = element_text(size = 13),
+        plot.title = element_text(face = "bold"),
+        panel.grid.major.y=element_line())
+        
+        
+
+```
+
+To get a better sense of reading habits I looked at how the time to read changed over time. It might seem logical that average time to read would track as an inverse of books read. in years where less books were read it presumable took longer to reach each one. however, it may have been that there were long stretches of time without reading, either between books or where the book was simply put down for months. an interesting lens would be to look at the relationship between average number of pages read and time to read. longer books, take longer to read. what we see is that there is sometimes a correlation (2020-21), but early on in 2011-14, the time to read is not nearly as volatile, and while the number of pages remained the same 2015-16, 2016 yielded more efficient reading.
+
+Looking at my own data is certainly interesting and a good place to start. However, for a deeper analysis I would like to look at is other user data. it would be beneficial to analyze overall interest and purchasing trends across different demographic groups. This is what would help to identify a target audience (other than my parents). It would be easier to determine which reviews to write and what site to monetize through with some better user data.
